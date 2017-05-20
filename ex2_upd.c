@@ -109,7 +109,7 @@ void initiateBoard() {
     printAndSignal();
 }
 
-void waitTimeOver() {
+void waitTimeOver(int sig) {
     Point p = generateRandomPoint();
 
     // find an empty tile
@@ -127,9 +127,142 @@ void waitTimeOver() {
     printAndSignal();
 }
 
+void sigint_Handler(int sig) {
+
+}
+
+void slideUp() {
+    int i, k, j;
+    // determines where to stop and not to merge because tile was merged
+    int stop = -1;
+
+    // start with columns
+    for (j = 0; j < BOARD_SIZE; ++j) {
+        for (i = 1; i < BOARD_SIZE; ++i) {
+            // if it's an empty tile we continue
+            if (board[i][j] == 0) {
+                continue;
+            }
+
+            for (k = i - 1; k >= 0; --k) {
+                if ((board[k + 1][j] == board[k][j]) && (stop != k)) {
+                    // merge
+                    board[k][j] *=2;
+                    // set a stop
+                    stop = k;
+                    // empty the tile
+                    board[k + 1][j] = 0;
+                } else {
+                    board[k][j] = board[k + 1][j];
+                    board[k + 1][j] = 0;
+                }
+            }
+        }
+    }
+/*
+    if (board[i][j] == 0) {
+        continue;
+    } else if ((board[i][j] == board[i - 1][j]) && (stop != (i - 1))) { // check if can be marged
+        // merge
+        board[i - 1][j] *=2;
+        // set a stop
+        stop = i - 1;
+        // empty the tile
+        board[i][j] = 0;
+    } else {
+        k = i - 1;
+        // start sliding the number
+        while (board[k][j] == 0) {
+            board[k][j] = board[k + 1][j];
+            board[k + 1][j] = 0;
+            k--;
+        }
+    } */
+}
+
+void slideDown() {
+    int i, k, j;
+    // determines where to stop and not to merge because tile was merged
+    int stop = -1;
+
+    // start with columns
+    for (j = 0; j < BOARD_SIZE; ++j) {
+        for (i = BOARD_SIZE - 2; i >= 0; --i) {
+            // if it's an empty tile we continue
+            if (board[i][j] == 0) {
+                continue;
+            } else if ((board[i][j] == board[i + 1][j]) && (stop != (i + 1))) { // check if can be merged
+                // merge
+                board[i + 1][j] *=2;
+                // set a stop
+                stop = i + 1;
+                // empty the tile
+                board[i][j] = 0;
+            } else {
+                k = i + 1;
+                // start sliding the number
+                while (board[k][j] == 0) {
+                    board[k][j] = board[k - 1][j];
+                    board[k - 1][j] = 0;
+                    k++;
+                }
+            }
+        }
+    }
+}
+
+void slideRight() {
+
+}
+
+void slideLeft () {
+
+}
+
+void runGameLogic(char move) {
+    switch (move) {
+        case 'w':
+            slideUp();
+            break;
+        case 'a':
+            slideLeft();
+            break;
+        case 'd':
+            slideRight();
+            break;
+        case 'x':
+            slideDown();
+            break;
+    }
+}
+
 int main(int argc, char **argv) {
+    struct sigaction sigAlarm;
+    struct sigaction sigInt;
+    char move;
+
+    // set handler for SIGALARM
+    sigAlarm.sa_handler = waitTimeOver;
+    sigAlarm.sa_mask = NULL;
+    sigAlarm.sa_flags = 0;
+
+    // set handler for SIGALARM
+    sigAlarm.sa_handler = sigint_Handler;
+    sigAlarm.sa_mask = NULL;
+    sigAlarm.sa_flags = 0;
 
     srand(time(NULL));
     initiateBoard();
+    // set initial alarm
+    alarm(waitTime);
 
+    while (!isFinished) {
+        system("stty cbreak -echo");
+        move = getchar();
+        system("stty cooked echo");
+
+        runGameLogic(move);
+    }
+
+    return 0;
 }
