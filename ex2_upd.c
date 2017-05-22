@@ -22,7 +22,7 @@ typedef struct {
 } Point;
 
 // game board -- global variable.
-int board[BOARD_SIZE][BOARD_SIZE];
+int board[BOARD_SIZE][BOARD_SIZE] = {{2,4,0,0},{2,2,0,16},{2,0,4,0},{0,0,16,0}};
 // waiting time -- global variable
 int waitTime;
 // printer process id -- global variable
@@ -70,12 +70,12 @@ void printAndSignal() {
     if ((write(STDOUT, buffer, strlen(buffer))) < 0) {
         exitWithError("Error writing to STDOUT");
     }
-
+/*
 
     // send a signal to the printer process
     if ((kill(pid, SIGUSR1)) < 0) {
         exitWithError("Error signaling");
-    }
+    } */
 }
 
 void initiateBoard() {
@@ -145,6 +145,7 @@ void slideUp() {
             }
 
             for (k = i - 1; k >= 0; --k) {
+                // if we can merge tiles
                 if ((board[k + 1][j] == board[k][j]) && (stop != k)) {
                     // merge
                     board[k][j] *=2;
@@ -153,31 +154,17 @@ void slideUp() {
                     // empty the tile
                     board[k + 1][j] = 0;
                 } else {
-                    board[k][j] = board[k + 1][j];
-                    board[k + 1][j] = 0;
+                    if (board[k][j] == 0) {
+                        board[k][j] = board[k + 1][j];
+                        board[k + 1][j] = 0;
+                    } else {
+                        // can't move anymore
+                        break;
+                    }
                 }
             }
         }
     }
-/*
-    if (board[i][j] == 0) {
-        continue;
-    } else if ((board[i][j] == board[i - 1][j]) && (stop != (i - 1))) { // check if can be marged
-        // merge
-        board[i - 1][j] *=2;
-        // set a stop
-        stop = i - 1;
-        // empty the tile
-        board[i][j] = 0;
-    } else {
-        k = i - 1;
-        // start sliding the number
-        while (board[k][j] == 0) {
-            board[k][j] = board[k + 1][j];
-            board[k + 1][j] = 0;
-            k--;
-        }
-    } */
 }
 
 void slideDown() {
@@ -187,24 +174,29 @@ void slideDown() {
 
     // start with columns
     for (j = 0; j < BOARD_SIZE; ++j) {
-        for (i = BOARD_SIZE - 2; i >= 0; --i) {
+        for (i = (BOARD_SIZE - 2); i >= 0; --i) {
             // if it's an empty tile we continue
             if (board[i][j] == 0) {
                 continue;
-            } else if ((board[i][j] == board[i + 1][j]) && (stop != (i + 1))) { // check if can be merged
-                // merge
-                board[i + 1][j] *=2;
-                // set a stop
-                stop = i + 1;
-                // empty the tile
-                board[i][j] = 0;
-            } else {
-                k = i + 1;
-                // start sliding the number
-                while (board[k][j] == 0) {
-                    board[k][j] = board[k - 1][j];
+            }
+
+            for (k = i + 1; k < BOARD_SIZE; ++k) {
+                // if we can merge tiles
+                if ((board[k - 1][j] == board[k][j]) && (stop != k)) {
+                    // merge
+                    board[k][j] *=2;
+                    // set a stop
+                    stop = k;
+                    // empty the tile
                     board[k - 1][j] = 0;
-                    k++;
+                } else {
+                    if (board[k][j] == 0) {
+                        board[k][j] = board[k - 1][j];
+                        board[k - 1][j] = 0;
+                    } else {
+                        // can't move anymore
+                        break;
+                    }
                 }
             }
         }
@@ -217,6 +209,21 @@ void slideRight() {
 
 void slideLeft () {
 
+}
+
+void printBoard() {
+    int i, j;
+    for (i = 0; i < BOARD_SIZE; ++i) {
+        printf("|");
+        for (j = 0; j < BOARD_SIZE; ++j) {
+            if (board[i][j] == 0) {
+                printf("      |");
+            } else {
+                printf(" %.4d |", board[i][j]);
+            }
+        }
+        printf("\n");
+    }
 }
 
 void runGameLogic(char move) {
@@ -234,7 +241,11 @@ void runGameLogic(char move) {
             slideDown();
             break;
     }
+
+    printBoard();
 }
+
+
 
 int main(int argc, char **argv) {
     struct sigaction sigAlarm;
@@ -252,14 +263,16 @@ int main(int argc, char **argv) {
     sigAlarm.sa_flags = 0;
 
     srand(time(NULL));
-    initiateBoard();
+    //initiateBoard();
     // set initial alarm
-    alarm(waitTime);
-
+    //alarm(waitTime);
+    printf("\n");
+    printBoard();
     while (!isFinished) {
-        system("stty cbreak -echo");
-        move = getchar();
-        system("stty cooked echo");
+        //system("stty cbreak -echo");
+        //move = getchar();
+        //system("stty cooked echo");
+        scanf("\n%c", &move);
 
         runGameLogic(move);
     }
