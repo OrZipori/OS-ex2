@@ -204,11 +204,75 @@ void slideDown() {
 }
 
 void slideRight() {
+    int i, k, j;
+    // determines where to stop and not to merge because tile was merged
+    int stop = -1;
 
+    // start with columns
+    for (i = 0; i < BOARD_SIZE; ++i) {
+        for (j = (BOARD_SIZE - 2); j >= 0; --j) {
+            // if it's an empty tile we continue
+            if (board[i][j] == 0) {
+                continue;
+            }
+
+            for (k = j + 1; k < BOARD_SIZE; ++k) {
+                // if we can merge tiles
+                if ((board[i][k - 1] == board[i][k]) && (stop != k)) {
+                    // merge
+                    board[i][k] *=2;
+                    // set a stop
+                    stop = k;
+                    // empty the tile
+                    board[i][k - 1] = 0;
+                } else {
+                    if (board[i][k] == 0) {
+                        board[i][k] = board[i][k - 1];
+                        board[i][k - 1] = 0;
+                    } else {
+                        // can't move anymore
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void slideLeft () {
+    int i, k, j;
+    // determines where to stop and not to merge because tile was merged
+    int stop = -1;
 
+    // start with columns
+    for (i = 0; i < BOARD_SIZE; ++i) {
+        for (j = 1; j < BOARD_SIZE; ++j) {
+            // if it's an empty tile we continue
+            if (board[i][j] == 0) {
+                continue;
+            }
+
+            for (k = j - 1; k >= 0; --k) {
+                // if we can merge tiles
+                if ((board[i][k + 1] == board[i][k]) && (stop != k)) {
+                    // merge
+                    board[i][k] *=2;
+                    // set a stop
+                    stop = k;
+                    // empty the tile
+                    board[i][k + 1] = 0;
+                } else {
+                    if (board[i][k] == 0) {
+                        board[i][k] = board[i][k + 1];
+                        board[i][k + 1] = 0;
+                    } else {
+                        // can't move anymore
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void printBoard() {
