@@ -1,7 +1,9 @@
-//
-// Created by guest on 5/19/17.
-//
-
+/*
+ * Student name : Or Zipori
+ * Student : 302933833
+ * Course Exercise Group : 03
+ * Exercise Name : ex2
+ */
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -13,77 +15,147 @@
 #define MAX_ITEMS 16
 #define BOARD_SIZE 4
 #define STDIN 0
+#define WIN '7'
+#define LOSE '8'
+#define STDOUT 1
 
 typedef enum {FALSE =0, TRUE} BOOLEAN;
 
 // global variable for checking if we are done
 BOOLEAN isFinished = FALSE;
 
+/*******************************************************************************
+* function name : exitWithError
+* input : message
+* output : -
+* explanation : write to stderr the message and exit with code -1
+*******************************************************************************/
 void exitWithError(char *msg) {
     perror(msg);
     exit(-1);
 }
 
-int* parseString(char *data) {
+/*******************************************************************************
+* function name : parseString
+* input : *data, *arr
+* output : -
+* explanation : parse the data string and create an int array and assign it to
+*               arr
+*******************************************************************************/
+void parseString(char *data, int *arr) {
     char *token;
     int i = 0;
-    int *tempArr = (int *) malloc(MAX_ITEMS * sizeof(int));
-    if (NULL == tempArr)
-        exitWithError("Malloc error");
 
     token = strtok(data, ",");
 
     while (token != NULL) {
-        tempArr[i] = atoi(token);
+        arr[i] = atoi(token);
 
         token = strtok(NULL, ",");
         i++;
     }
-
-    return tempArr;
 }
 
+/*******************************************************************************
+* function name : handle_input
+* input : signum
+* output : -
+* explanation : SIGUSR1 handler, in charge of printing to STDOUT the
+*               deserialized board.
+*******************************************************************************/
 void handle_input(int signum) {
-    char buffer[MAX_LINE];
-    int *items;
+    char buffer[MAX_LINE] = {0}, outBuf[MAX_LINE] = {0}, tempBuf[100] = {0};
     int k = 0, i, j;
+    int items[MAX_ITEMS];
+    char *token, *mode;
 
     // read from STDIN
     if ((read(STDIN, &buffer, sizeof(buffer))) < 0) {
         exitWithError("error read");
     }
 
+    // get the board serialization
+    token  = strtok(buffer, "#");
+    // get game mode
+    mode = strtok(NULL, "#");
+
     // parse the data and assign it to an array
-    items = parseString(buffer);
+    parseString(token, items);
 
     // print the board
     for (i = 0; i < BOARD_SIZE; ++i) {
-        printf("|");
+        strcat(outBuf,"|");
         for (j = 0; j < BOARD_SIZE; ++j) {
             k = (i * BOARD_SIZE) + j;
             if (items[k] == 0) {
-                printf("      |");
+                sprintf(tempBuf,"      |");
             } else {
-                printf(" %.4d |", items[k]);
+                sprintf(tempBuf," %.4d |", items[k]);
             }
+            strcat(outBuf, tempBuf);
         }
-        printf("\n");
+        strcat(outBuf,"\n");
     }
 
-    free(items);
+    strcat(outBuf,"\n");
+
+    // print to the screen
+
+    if ((write(STDOUT, outBuf, strlen(outBuf))) < 0) {
+        exitWithError("error writing");
+    }
+
+    // check win or lose
+    if (mode[0] == LOSE) {
+        if ((write(STDOUT, "Game Over !", 12)) < 0) {
+            exitWithError("error writing");
+        }
+
+        // use the alarm handler to end both child processes
+        if ((kill(getppid(), SIGALRM)) < 0 ) {
+            exitWithError("error signal");
+        }
+        return;
+    }
+
+    if (mode[0] == WIN) {
+        if ((write(STDOUT, "Congratulations !", 18)) < 0) {
+            exitWithError("error writing");
+        }
+        // use the alarm handler to end both child processes
+        if ((kill(getppid(), SIGALRM)) < 0 ) {
+            exitWithError("error signal");
+        }
+    }
 }
 
+/*******************************************************************************
+* function name : handle_int
+* input : signum
+* output : -
+* explanation : SIGINT handler, in charge of finish the game properly
+*******************************************************************************/
 void handle_int(int signum) {
-    printf("BYE BYE\n");
+    char buf[15];
+    sprintf(buf,"\nBYE BYE\n");
     isFinished = TRUE;
+
+    if ((write(STDOUT, buf, strlen(buf))) < 0) {
+        exitWithError("error writing");
+    }
 }
 
+/*******************************************************************************
+* function name : main
+* input : argc, **argv
+* output : 0
+* explanation : main function
+*******************************************************************************/
 int main (int argc, char **argv) {
     sigset_t blocked;
     struct sigaction sigusr1Handler;
     struct sigaction sigintHandler;
-    char buf[100] = "2,4,0,0,2,2,0,16,0,0,4,0,16,0,16,0";
-
+    char buf[100];
 
     // block all signals except SIGUSR1 and SIGINT
     sigemptyset(&blocked);
@@ -101,13 +173,16 @@ int main (int argc, char **argv) {
     sigintHandler.sa_mask = blocked;
     sigintHandler.sa_flags = 0;
 
-    sigaction(SIGUSR1, &sigusr1Handler, NULL);
-    sigaction(SIGINT, &sigintHandler, NULL);
+    if ((sigaction(SIGUSR1, &sigusr1Handler, NULL)) < 0) {
+        exitWithError("error sigaction");
+    }
 
+    if ((sigaction(SIGINT, &sigintHandler, NULL)) < 0) {
+        exitWithError("error sigaction");
+    }
 
     while(!isFinished) {
         // pause until one of the two signals received
-
         pause();
     }
 

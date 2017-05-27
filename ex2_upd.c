@@ -1,6 +1,9 @@
-//
-// Created by guest on 5/20/17.
-//
+/*
+ * Student name : Or Zipori
+ * Student : 302933833
+ * Course Exercise Group : 03
+ * Exercise Name : ex2
+ */
 
 #include <stdio.h>
 #include <signal.h>
@@ -22,7 +25,7 @@ typedef struct {
 } Point;
 
 // game board -- global variable.
-int board[BOARD_SIZE][BOARD_SIZE] = {{2,4,0,0},{2,2,0,16},{2,0,4,0},{0,0,16,0}};
+int board[BOARD_SIZE][BOARD_SIZE];
 // waiting time -- global variable
 int waitTime;
 // printer process id -- global variable
@@ -30,11 +33,73 @@ int pid;
 // isFinished -- global variable
 BOOLEAN isFinished = FALSE;
 
+/*******************************************************************************
+* function name : exitWithError
+* input : message
+* output : -
+* explanation : write to stderr the message and exit with code -1
+*******************************************************************************/
 void exitWithError(char *msg) {
     perror(msg);
     exit(-1);
 }
 
+/*******************************************************************************
+* function name : checkWin
+* input : -
+* output : true if win else false
+* explanation : checks if the player has won
+*******************************************************************************/
+BOOLEAN checkWin() {
+    int i, j;
+    for (i = 0; i < BOARD_SIZE; ++i) {
+        for (j = 0; j < BOARD_SIZE; ++j) {
+            if (board[i][j] == 2048) {
+                return TRUE;
+            }
+        }
+    }
+
+    return FALSE;
+}
+
+/*******************************************************************************
+* function name : checkLose
+* input : -
+* output : true if lose else false
+* explanation : checks if the player has lost
+*******************************************************************************/
+BOOLEAN checkLose() {
+    int i, j;
+    for (i = 0; i < BOARD_SIZE; ++i) {
+        for (j = 0; j < BOARD_SIZE; ++j) {
+            if (board[i][j] == 0) {
+                return FALSE;
+            }
+        }
+    }
+
+    return TRUE;
+}
+
+/*******************************************************************************
+* function name : setAlarm
+* input : -
+* output : -
+* explanation : set an alarm with random value
+*******************************************************************************/
+void setAlarm() {
+    // we want a number between 1 and 5
+    waitTime = (rand() % 5) + 1;
+    alarm(waitTime);
+}
+
+/*******************************************************************************
+* function name : generateRandomPoint
+* input : -
+* output : random point
+* explanation : generate a random point
+*******************************************************************************/
 Point generateRandomPoint() {
     Point tmp;
 
@@ -44,8 +109,34 @@ Point generateRandomPoint() {
     return tmp;
 }
 
+/*******************************************************************************
+* function name : getGameMode
+* input : *buffer
+* output : -
+* explanation : assign a game mode inside the buffer. 7 - win, 8 - lose,
+*               6 - continue.
+*******************************************************************************/
+void getGameMode(char *buffer) {
+    int mode;
+
+    if (checkLose()) {
+        strcpy(buffer,"#8");
+    } else if (checkWin()) {
+        strcpy(buffer,"#7");
+    } else {
+        strcpy(buffer,"#6");
+    }
+}
+
+/*******************************************************************************
+* function name : generateStringFromBoard
+* input : *buffer
+* output : -
+* explanation : generate and assign a board serialization inside the buffer
+*******************************************************************************/
 void generateStringFromBoard(char *buffer) {
     int i, j;
+    char mode[3];
 
     char smallBuf[MAX_ITEMS] = {0};
 
@@ -56,10 +147,21 @@ void generateStringFromBoard(char *buffer) {
         }
     }
 
+    getGameMode(mode);
+
     // remove the extra ','
     buffer[strlen(buffer) - 1] = '\0';
+
+    // add game mode serialization
+    strcat(buffer, mode);
 }
 
+/*******************************************************************************
+* function name : printAndSignal
+* input : -
+* output : -
+* explanation : write to stdout and signal ex2_inp to print
+*******************************************************************************/
 void printAndSignal() {
     char buffer[MAX_LINE] = {0};
 
@@ -70,14 +172,19 @@ void printAndSignal() {
     if ((write(STDOUT, buffer, strlen(buffer))) < 0) {
         exitWithError("Error writing to STDOUT");
     }
-/*
 
     // send a signal to the printer process
     if ((kill(pid, SIGUSR1)) < 0) {
         exitWithError("Error signaling");
-    } */
+    }
 }
 
+/*******************************************************************************
+* function name : initiateBoard
+* input : -
+* output : -
+* explanation : initiate a new board and set two random tiles with 2
+*******************************************************************************/
 void initiateBoard() {
     int i, j;
 
@@ -88,9 +195,6 @@ void initiateBoard() {
             board[i][j] = 0;
         }
     }
-
-    // we want a number between 1 and 5
-    waitTime = (rand() % 5) + 1;
 
     // generate a random point
     posArr[0] = generateRandomPoint();
@@ -105,10 +209,18 @@ void initiateBoard() {
     board[posArr[0].x][posArr[0].y] = 2;
     board[posArr[1].x][posArr[1].y] = 2;
 
+    setAlarm();
+
     // print and signal SIGUSER1
     printAndSignal();
 }
 
+/*******************************************************************************
+* function name : waitTimeOver
+* input : sig
+* output : -
+* explanation : SIGALRM handler, generates a point and asign the tile 2
+*******************************************************************************/
 void waitTimeOver(int sig) {
     Point p = generateRandomPoint();
 
@@ -120,24 +232,27 @@ void waitTimeOver(int sig) {
     // place 2 inside the empty tile
     board[p.x][p.y] = 2;
 
-    // new wait time
-    waitTime = (rand() % 5) + 1;
-
     // print and signal SIGUSER1
     printAndSignal();
+
+    // new wait time
+    setAlarm();
 }
 
-void sigint_Handler(int sig) {
-
-}
-
+/*******************************************************************************
+* function name : slideUp
+* input : -
+* output : -
+* explanation : handles moving all the columns up
+*******************************************************************************/
 void slideUp() {
     int i, k, j;
     // determines where to stop and not to merge because tile was merged
-    int stop = -1;
+    int stop;
 
     // start with columns
     for (j = 0; j < BOARD_SIZE; ++j) {
+        stop = -1;
         for (i = 1; i < BOARD_SIZE; ++i) {
             // if it's an empty tile we continue
             if (board[i][j] == 0) {
@@ -146,7 +261,7 @@ void slideUp() {
 
             for (k = i - 1; k >= 0; --k) {
                 // if we can merge tiles
-                if ((board[k + 1][j] == board[k][j]) && (stop != k)) {
+                if ((board[k + 1][j] == board[k][j]) && (stop < k)) {
                     // merge
                     board[k][j] *=2;
                     // set a stop
@@ -167,13 +282,20 @@ void slideUp() {
     }
 }
 
+/*******************************************************************************
+* function name : slideDown
+* input : -
+* output : -
+* explanation : handles moving all the columns down
+*******************************************************************************/
 void slideDown() {
     int i, k, j;
     // determines where to stop and not to merge because tile was merged
-    int stop = -1;
+    int stop;
 
     // start with columns
     for (j = 0; j < BOARD_SIZE; ++j) {
+        stop = BOARD_SIZE;
         for (i = (BOARD_SIZE - 2); i >= 0; --i) {
             // if it's an empty tile we continue
             if (board[i][j] == 0) {
@@ -182,7 +304,7 @@ void slideDown() {
 
             for (k = i + 1; k < BOARD_SIZE; ++k) {
                 // if we can merge tiles
-                if ((board[k - 1][j] == board[k][j]) && (stop != k)) {
+                if ((board[k - 1][j] == board[k][j]) && (stop > k)) {
                     // merge
                     board[k][j] *=2;
                     // set a stop
@@ -203,13 +325,20 @@ void slideDown() {
     }
 }
 
+/*******************************************************************************
+* function name : slideRight
+* input : -
+* output : -
+* explanation : handles moving all the rows right
+*******************************************************************************/
 void slideRight() {
     int i, k, j;
     // determines where to stop and not to merge because tile was merged
-    int stop = -1;
+    int stop;
 
-    // start with columns
+    // start with rows
     for (i = 0; i < BOARD_SIZE; ++i) {
+        stop = BOARD_SIZE;
         for (j = (BOARD_SIZE - 2); j >= 0; --j) {
             // if it's an empty tile we continue
             if (board[i][j] == 0) {
@@ -218,7 +347,7 @@ void slideRight() {
 
             for (k = j + 1; k < BOARD_SIZE; ++k) {
                 // if we can merge tiles
-                if ((board[i][k - 1] == board[i][k]) && (stop != k)) {
+                if ((board[i][k - 1] == board[i][k]) && (stop > k)) {
                     // merge
                     board[i][k] *=2;
                     // set a stop
@@ -239,13 +368,20 @@ void slideRight() {
     }
 }
 
+/*******************************************************************************
+* function name : slideLeft
+* input : -
+* output : -
+* explanation : handles moving all the rows left
+*******************************************************************************/
 void slideLeft () {
     int i, k, j;
     // determines where to stop and not to merge because tile was merged
-    int stop = -1;
+    int stop;
 
-    // start with columns
+    // start with rows
     for (i = 0; i < BOARD_SIZE; ++i) {
+        stop = -1;
         for (j = 1; j < BOARD_SIZE; ++j) {
             // if it's an empty tile we continue
             if (board[i][j] == 0) {
@@ -254,7 +390,7 @@ void slideLeft () {
 
             for (k = j - 1; k >= 0; --k) {
                 // if we can merge tiles
-                if ((board[i][k + 1] == board[i][k]) && (stop != k)) {
+                if ((board[i][k + 1] == board[i][k]) && (stop < k)) {
                     // merge
                     board[i][k] *=2;
                     // set a stop
@@ -275,68 +411,77 @@ void slideLeft () {
     }
 }
 
-void printBoard() {
-    int i, j;
-    for (i = 0; i < BOARD_SIZE; ++i) {
-        printf("|");
-        for (j = 0; j < BOARD_SIZE; ++j) {
-            if (board[i][j] == 0) {
-                printf("      |");
-            } else {
-                printf(" %.4d |", board[i][j]);
-            }
-        }
-        printf("\n");
-    }
-}
-
+/*******************************************************************************
+* function name : runGameLogic
+* input : move
+* output : -
+* explanation : invoking the correct slide function according to move and set
+*               a new alarm
+*******************************************************************************/
 void runGameLogic(char move) {
     switch (move) {
+        case 'W':
         case 'w':
             slideUp();
+            setAlarm();
             break;
+        case 'A':
         case 'a':
             slideLeft();
+            setAlarm();
             break;
+        case 'D':
         case 'd':
             slideRight();
+            setAlarm();
             break;
+        case 'X':
         case 'x':
             slideDown();
+            setAlarm();
             break;
+        case 'S':
+        case 's':
+            initiateBoard();
+            break;
+        default: // prevention of wrong chars
+            return;
     }
 
-    printBoard();
+    printAndSignal();
 }
 
-
-
+/*******************************************************************************
+* function name : main
+* input : argc, **argv
+* output : 0
+* explanation : main function
+*******************************************************************************/
 int main(int argc, char **argv) {
+    sigset_t blocked;
     struct sigaction sigAlarm;
-    struct sigaction sigInt;
     char move;
 
-    // set handler for SIGALARM
+    sigemptyset(&blocked);
+    // set handler for SIGALRM
     sigAlarm.sa_handler = waitTimeOver;
-    sigAlarm.sa_mask = NULL;
+    sigAlarm.sa_mask = blocked;
     sigAlarm.sa_flags = 0;
 
-    // set handler for SIGALARM
-    sigAlarm.sa_handler = sigint_Handler;
-    sigAlarm.sa_mask = NULL;
-    sigAlarm.sa_flags = 0;
+    if ((sigaction(SIGALRM, &sigAlarm, NULL)) < 0) {
+        exitWithError("sigaction error");
+    }
 
+    pid = atoi(argv[1]);
+
+    // for randomize
     srand(time(NULL));
-    //initiateBoard();
-    // set initial alarm
-    //alarm(waitTime);
-    printf("\n");
-    printBoard();
+    initiateBoard();
+
     while (!isFinished) {
-        //system("stty cbreak -echo");
-        //move = getchar();
-        //system("stty cooked echo");
-        scanf("\n%c", &move);
+        system("stty cbreak -echo");
+        move = getchar();
+        system("stty cooked echo");
 
         runGameLogic(move);
     }
